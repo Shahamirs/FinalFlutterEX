@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/question.dart';
 import '../models/quiz_result.dart';
 import '../services/quiz_service.dart';
+import '../services/analytics_service.dart';
 
 enum QuizState { loading, ready, error, inProgress, finished }
 
 class QuizViewModel extends ChangeNotifier {
   final QuizService _quizService = QuizService();
+  final AnalyticsService _analytics = AnalyticsService.instance;
 
   QuizState _state = QuizState.loading;
   QuizState get state => _state;
@@ -21,7 +23,7 @@ class QuizViewModel extends ChangeNotifier {
   Question get currentQuestion => _questions[_currentIndex];
   int get currentIndex => _currentIndex;
   int get totalQuestions => _questions.length;
-  
+
   // Track selected index before proceeding
   int? _selectedIndex;
   int? get selectedIndex => _selectedIndex;
@@ -39,8 +41,8 @@ class QuizViewModel extends ChangeNotifier {
       notifyListeners();
 
       _questions = await _quizService.loadQuestions();
-      _questions.shuffle(); // Optional: shuffle questions
-      
+      _questions.shuffle();
+
       _state = QuizState.ready;
       notifyListeners();
     } catch (e) {
@@ -57,13 +59,21 @@ class QuizViewModel extends ChangeNotifier {
     _result = null;
     _state = QuizState.inProgress;
     notifyListeners();
+    _analytics.logQuizStarted();
   }
 
   void selectAnswer(int index) {
-    if (_selectedIndex != null) return; // Prevent changing answer repeatedly
+    if (_selectedIndex != null) return; // Prevent changing answer
 
     _selectedIndex = index;
     notifyListeners();
+
+    final isCorrect = index == currentQuestion.correctIndex;
+    _analytics.logQuestionAnswered(
+      questionIndex: _currentIndex,
+      isCorrect: isCorrect,
+      topic: currentQuestion.topic,
+    );
   }
 
   void proceedToNext() {
@@ -88,15 +98,18 @@ class QuizViewModel extends ChangeNotifier {
       correctAnswers: _correctAnswers,
     );
     _state = QuizState.finished;
+    _analytics.logQuizFinished(
+      correctAnswers: _correctAnswers,
+      totalQuestions: _questions.length,
+    );
   }
 
   void retryQuiz() {
-    // Optionally reshuffle here
     _questions.shuffle();
     startQuiz();
   }
-  
+
   void restartLoading() {
-      _init();
+    _init();
   }
 }
