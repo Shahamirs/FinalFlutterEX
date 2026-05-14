@@ -8,13 +8,17 @@ import 'view_models/quiz_view_model.dart';
 import 'view_models/notification_view_model.dart';
 import 'services/notification_service.dart';
 import 'services/prefs_service.dart';
+import 'firebase_options.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Firebase (graceful — работает даже без реального google-services.json)
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     debugPrint('[App] Firebase initialized successfully');
   } catch (e) {
     debugPrint('[App] Firebase init skipped: $e');
